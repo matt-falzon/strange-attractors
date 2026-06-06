@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strange Attractors</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0f;
+            color: #e0e0e8;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        #canvas:active {
+            cursor: grabbing;
+        }
+
+        /* Header */
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #title {
+            font-size: 28px;
+            font-weight: 200;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 0 30px rgba(100, 150, 255, 0.3);
+        }
+
+        #title span {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        #subtitle {
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Controls */
+        .panel {
+            position: fixed;
+            background: rgba(15, 15, 25, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 20;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .panel.hidden {
+            transform: translateY(10px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Left panel - Attractor browser */
+        #left-panel {
+            top: 100px;
+            left: 20px;
+            width: 280px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+
+        #left-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #left-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 15px;
+        }
+
+        .attractor-list {
+            list-style: none;
+        }
+
+        .attractor-item {
+            padding: 12px 15px;
+            margin: 4px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .attractor-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .attractor-item.active {
+            background: rgba(100, 150, 255, 0.15);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+        }
+
+        .attractor-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .attractor-year {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Right panel - Parameters */
+        #right-panel {
+            top: 100px;
+            right: 20px;
+            width: 300px;
+        }
+
+        .param-group {
+            margin: 15px 0;
+        }
+
+        .param-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .param-name {
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+        }
+
+        .param-value {
+            color: rgba(100, 180, 255, 0.9);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 11px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #6496ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+        }
+
+        /* Bottom bar */
+        #bottom-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+            padding: 12px 25px;
+            background: rgba(15, 15, 25, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 30px;
+            z-index: 20;
+        }
+
+        .bottom-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .bottom-label {
+            font-size: 9px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .bottom-value {
+            font-size: 13px;
+            font-weight: 500;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Equation display */
+        #equation-panel {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            background: rgba(15, 15, 25, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            z-index: 15;
+            text-align: center;
+            min-width: 400px;
+        }
+
+        .equation {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .equation .var {
+            color: #ff8a65;
+        }
+
+        .equation .param {
+            color: #64b5f6;
+        }
+
+        /* Description */
+        #description {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            background: rgba(15, 15, 25, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            z-index: 15;
+            text-align: center;
+            max-width: 600px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Toggle buttons */
+        .toggle-btn {
+            position: fixed;
+            padding: 10px 15px;
+            background: rgba(15, 15, 25, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 30;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        #toggle-left {
+            top: 100px;
+            left: 20px;
+        }
+
+        #toggle-right {
+            top: 100px;
+            right: 20px;
+        }
+
+        /* Color palette selector */
+        .palette-selector {
+            display: flex;
+            gap: 8px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .palette-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .palette-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .palette-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .palette-btn[data-palette="hot"] { background: linear-gradient(135deg, #ff0000, #ffff00); }
+        .palette-btn[data-palette="ocean"] { background: linear-gradient(135deg, #001a4d, #00bcd4); }
+        .palette-btn[data-palette="fire"] { background: linear-gradient(135deg, #1a0000, #ff6600, #ffcc00); }
+        .palette-btn[data-palette="neon"] { background: linear-gradient(135deg, #ff00ff, #00ffff); }
+        .palette-btn[data-palette="aurora"] { background: linear-gradient(135deg, #00aa66, #8800ff); }
+        .palette-btn[data-palette="ice"] { background: linear-gradient(135deg, #4a5568, #e2e8f0); }
+        .palette-btn[data-palette="galaxy"] { background: linear-gradient(135deg, #2d004d, #ff69b4); }
+
+        /* Stats */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 12px;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .stat-value {
+            font-family: 'SF Mono', monospace;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Loading */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+        }
+
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #6496ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #title { font-size: 20px; }
+            .panel { width: calc(100vw - 40px) !important; left: 20px !important; right: 20px !important; }
+            #right-panel { top: auto; bottom: 100px; }
+            #equation-panel, #description { width: calc(100vw - 40px); }
+            #bottom-bar { gap: 15px; padding: 10px 15px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="loading">
+        <div class="loader"></div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 2px;">INITIALIZING</div>
+    </div>
+
+    <div id="error" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); padding:30px; background:rgba(255,0,0,0.1); border:1px solid rgba(255,0,0,0.3); border-radius:12px; text-align:center; z-index:100; font-family: monospace; color: #ff6b6b;"></div>
+
+    <div id="header">
+      <div>
+          <div id="title"><span>Strange</span> Attractors</div>
+          <div id="subtitle">Interactive Chaos Visualization</div>
+      </div>
+      <div style="display:flex; gap:10px;">
+          <button onclick="app.screenshot()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:8px; font-size:11px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">📷 Screenshot (S)</button>
+          <button onclick="app.randomAttractor()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:8px; font-size:11px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">🎲 Random</button>
+      </div>
+    </div>
+
+    <!-- Left Panel: Attractor Browser -->
+    <div id="left-panel" class="panel">
+        <div class="panel-title">Attractors</div>
+        <ul class="attractor-list" id="attractor-list"></ul>
+    </div>
+
+    <!-- Right Panel: Controls -->
+    <div id="right-panel" class="panel">
+        <div class="panel-title">Parameters</div>
+        <div id="params-container"></div>
+
+        <div class="panel-title" style="margin-top: 20px;">Color Palette</div>
+        <div class="palette-selector">
+            <div class="palette-btn active" data-palette="hot" data-index="0"></div>
+            <div class="palette-btn" data-palette="ocean" data-index="1"></div>
+            <div class="palette-btn" data-palette="fire" data-index="2"></div>
+            <div class="palette-btn" data-palette="neon" data-index="3"></div>
+            <div class="palette-btn" data-palette="aurora" data-index="4"></div>
+            <div class="palette-btn" data-palette="ice" data-index="5"></div>
+            <div class="palette-btn" data-palette="galaxy" data-index="6"></div>
+        </div>
+
+        <div class="panel-title" style="margin-top: 20px;">Rendering</div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Point Size</span>
+                <span class="param-value" id="point-size-value">2.0</span>
+            </div>
+            <input type="range" id="point-size" min="0.5" max="6" step="0.1" value="2">
+        </div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Trail Length</span>
+                <span class="param-value" id="trail-value">100%</span>
+            </div>
+            <input type="range" id="trail-length" min="10" max="100" step="5" value="100">
+        </div>
+
+        <div class="panel-title" style="margin-top: 20px;">Visual Effects</div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Symmetry</span>
+                <select id="symmetry-mode" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.8); padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;">
+                    <option value="0">Off</option>
+                    <option value="4">4-way</option>
+                    <option value="6">6-way</option>
+                    <option value="8">Kaleidoscope</option>
+                </select>
+            </div>
+        </div>
+        <div class="param-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="param-name">Velocity Coloring</span>
+                <button id="toggle-velocity" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.6); padding:4px 10px; border-radius:4px; font-size:10px; cursor:pointer; letter-spacing:1px;">OFF</button>
+            </div>
+        </div>
+
+        <div class="panel-title" style="margin-top: 20px;">Parameter Animation</div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Animate</span>
+                <select id="anim-param" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.8); padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;">
+                </select>
+            </div>
+        </div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Speed</span>
+                <span class="param-value" id="anim-speed-value">0.50</span>
+            </div>
+            <input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="0.5">
+        </div>
+        <div class="param-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="param-name">Animation</span>
+                <button id="toggle-animation" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.6); padding:4px 10px; border-radius:4px; font-size:10px; cursor:pointer; letter-spacing:1px;">OFF</button>
+            </div>
+        </div>
+
+        <div class="panel-title" style="margin-top: 20px;">Phase Space Views</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
+            <div style="text-align:center;">
+                <canvas id="phase-xy" width="80" height="80" style="width:80px;height:80px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);"></canvas>
+                <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:4px;">XY</div>
+            </div>
+            <div style="text-align:center;">
+                <canvas id="phase-xz" width="80" height="80" style="width:80px;height:80px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);"></canvas>
+                <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:4px;">XZ</div>
+            </div>
+            <div style="text-align:center;">
+                <canvas id="phase-yz" width="80" height="80" style="width:80px;height:80px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);"></canvas>
+                <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:4px;">YZ</div>
+            </div>
+        </div>
+
+        <div class="panel-title" style="margin-top: 20px;">Info</div>
+        <div id="stats-container"></div>
+    </div>
+
+     <!-- Equation Display -->
+     <div id="equation-panel" style="display:none; position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); padding: 15px 25px; background: rgba(15, 15, 25, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; z-index: 15; text-align: center; min-width: 400px;">
+       <div class="equation" id="equation-content"></div>
+     </div>
+
+     <!-- Description -->
+    <div id="description"></div>
+
+    <!-- Bifurcation Diagram Overlay -->
+    <div id="bifurcation-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(5,5,15,0.95); z-index:50; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="position:absolute; top:20px; left:50%; transform:translateX(-50%); text-align:center;">
+            <div style="font-size:18px; font-weight:200; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,0.8);">Bifurcation Diagram</div>
+            <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-top:4px;" id="bifurcation-subtitle">Varying parameter •r• from 24.0 to 50.0</div>
+        </div>
+        <canvas id="bifurcation-canvas" style="border-radius:8px; margin-top:40px;"></canvas>
+        <div style="margin-top:20px; display:flex; gap:20px; align-items:center;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                <span style="font-size:9px; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,0.4);">Parameter</span>
+                <select id="bifurcation-param" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 12px; border-radius:6px; font-size:12px;"></select>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                <span style="font-size:9px; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,0.4);">Range Min</span>
+                <input type="number" id="bifurcation-min" value="24" step="0.1" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 12px; border-radius:6px; font-size:12px; width:80px;">
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                <span style="font-size:9px; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,0.4);">Range Max</span>
+                <input type="number" id="bifurcation-max" value="50" step="0.1" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 12px; border-radius:6px; font-size:12px; width:80px;">
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                <span style="font-size:9px; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,0.4);">Steps</span>
+                <input type="number" id="bifurcation-steps" value="200" step="10" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 12px; border-radius:6px; font-size:12px; width:80px;">
+            </div>
+            <button id="bifurcation-generate" style="background:rgba(100,150,255,0.3); border:1px solid rgba(100,150,255,0.5); color:#fff; padding:8px 20px; border-radius:8px; font-size:12px; cursor:pointer; letter-spacing:1px;">GENERATE</button>
+            <button id="bifurcation-close" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.6); padding:8px 20px; border-radius:8px; font-size:12px; cursor:pointer; letter-spacing:1px;">CLOSE (B)</button>
+        </div>
+    </div>
+
+    <!-- Bottom Stats Bar -->
+    <div id="bottom-bar">
+        <div class="bottom-item">
+            <span class="bottom-label">Points</span>
+            <span class="bottom-value" id="stat-points">0</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">FPS</span>
+            <span class="bottom-value" id="stat-fps">60</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Attractor</span>
+            <span class="bottom-value" id="stat-attractor">-</span>
+        </div>
+        <div class="bottom-item" id="toggle-trails" style="cursor:pointer;">
+            <span class="bottom-label">Trails</span>
+            <span class="bottom-value" id="stat-trails">OFF</span>
+        </div>
+        <div class="bottom-item" id="toggle-rotate" style="cursor:pointer;">
+            <span class="bottom-label">Auto-Rotate</span>
+            <span class="bottom-value" id="stat-rotate">ON</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Lyapunov</span>
+            <span class="bottom-value" id="stat-lyapunov">0.000</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Dynamics</span>
+            <span class="bottom-value" id="stat-chaos">-</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Symmetry</span>
+            <span class="bottom-value" id="stat-symmetry">OFF</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Velocity</span>
+            <span class="bottom-value" id="stat-velocity">OFF</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Animation</span>
+            <span class="bottom-value" id="stat-animation">OFF</span>
+        </div>
+    </div>
+
+    <script src="js/attractors.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
