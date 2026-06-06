@@ -74,8 +74,8 @@ class PointCloudRenderer {
 
             void main() {
                 float colorT = vColorIndex;
-                int palette = int(uColorMode + 0.5);
-                vec3 color = palette(colorT, palette);
+                int palIdx = int(uColorMode + 0.5);
+                vec3 color = palette(colorT, palIdx);
 
                 vec2 coord = gl_PointCoord - vec2(0.5);
                 float dist = length(coord);
@@ -124,8 +124,8 @@ class PointCloudRenderer {
             }
 
             void main() {
-                int palette = int(uColorMode + 0.5);
-                vec3 color = palette(vColorIndex, palette);
+                int palIdx = int(uColorMode + 0.5);
+                vec3 color = palette(vColorIndex, palIdx);
                 gl_FragColor = vec4(color * 1.2, vAlpha);
             }
         `;
