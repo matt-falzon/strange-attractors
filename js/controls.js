@@ -49,6 +49,7 @@ Object.assign(App.prototype, {
         this.setupParamAnimation();
         this.setupPresetsUI();
         this.setupHeatmapExplorer();
+        this.setupTimeControls();
 
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
@@ -102,6 +103,9 @@ Object.assign(App.prototype, {
             }
             if (e.code === 'KeyM') {
                 this.morph();
+            }
+            if (e.code === 'KeyW') {
+                this.cycleTimeDirection();
             }
         });
     },
@@ -406,7 +410,28 @@ Object.assign(App.prototype, {
             }
         };
 
-        drawBatch();
+         drawBatch();
+    },
+
+    setupTimeControls() {
+        const toggleTime = document.getElementById('toggle-time');
+        if (toggleTime) {
+            toggleTime.addEventListener('click', () => {
+                this.cycleTimeDirection();
+            });
+        }
+    },
+
+    cycleTimeDirection() {
+        this.timeDirection = this.timeDirection === 1 ? -1 : 1;
+        const label = this.timeDirection === 1 ? 'FWD' : 'REV';
+        const color = this.timeDirection === 1 ? '#64b5f6' : '#ef5350';
+
+        const statEl = document.getElementById('stat-time');
+        if (statEl) {
+            statEl.textContent = label;
+            statEl.style.color = color;
+        }
     }
 
 });

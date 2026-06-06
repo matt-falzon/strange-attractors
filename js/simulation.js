@@ -53,11 +53,18 @@ class AttractorSimulation {
         this.maxPoints = 20000;
         this.h = 0.005;
         this.burnIn = 0;
+
+        // Time reversal buffer
+        this.trajectoryHistory = [];
+        this.maxHistory = 300; // ~5 seconds at 60fps, 10 steps/frame
+        this.reverseIndex = -1;
+        this.isReversing = false;
     }
 
     step() {
         if (!this.attractor || !this.attractor.step) return;
 
+        const oldPos = [...this.position];
         const newPos = this.attractor.step(
             this.position[0], this.position[1], this.position[2],
             this.h, this.params
@@ -73,6 +80,40 @@ class AttractorSimulation {
         if (this.points.length > this.maxPoints) {
             this.points.shift();
         }
+
+        // Record trajectory for time reversal
+        if (!this.isReversing) {
+            this.trajectoryHistory.push(oldPos);
+            if (this.trajectoryHistory.length > this.maxHistory) {
+                this.trajectoryHistory.shift();
+            }
+        }
+    }
+
+    stepReverse() {
+        if (this.trajectoryHistory.length === 0) return false;
+
+        this.isReversing = true;
+        const prevPos = this.trajectoryHistory.pop();
+        if (!prevPos) {
+            this.isReversing = false;
+            return false;
+        }
+
+        this.position = prevPos;
+
+        // Remove newest point from trail, insert historical position at end
+        // This makes the trail "unwind" as we trace backwards
+        if (this.points.length > 1) {
+            this.points.pop();
+        }
+        this.points.push([...this.position]);
+
+        if (this.trajectoryHistory.length === 0) {
+            this.isReversing = false;
+        }
+
+        return true;
     }
 
     getVelocity(x, y, z) {
@@ -89,6 +130,9 @@ class AttractorSimulation {
         this.lyapunovSum = 0;
         this.lyapunovCount = 0;
         this.perturbation = [1e-10, 1e-10, 1e-10];
+        this.trajectoryHistory = [];
+        this.reverseIndex = -1;
+        this.isReversing = false;
     }
 
     updateParams(newParams) {

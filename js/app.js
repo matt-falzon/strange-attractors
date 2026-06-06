@@ -12,6 +12,7 @@ class App {
         this.frameCount = 0;
         this.currentPalette = 0;
         this.isPaused = false;
+        this.timeDirection = 1; // 1=forward, -1=reverse
         this.paramAnimation = null;
         this.paramAnimSpeed = 0.5;
         this.paramAnimParam = null;
@@ -73,8 +74,13 @@ class App {
 
         if (!this.isPaused) {
             for (let i = 0; i < 10; i++) {
-                this.simulation1.stepLyapunov();
-                this.simulation2.stepLyapunov();
+                if (this.timeDirection === 1) {
+                    this.simulation1.stepLyapunov();
+                    this.simulation2.stepLyapunov();
+                } else if (this.timeDirection === -1) {
+                    this.simulation1.stepReverse();
+                    this.simulation2.stepReverse();
+                }
             }
             this.updateParamAnimation();
             this.updateParamTransitions();
