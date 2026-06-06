@@ -100,6 +100,9 @@ Object.assign(App.prototype, {
             if (e.code === 'Home') {
                 this.renderer.resetCamera();
             }
+            if (e.code === 'KeyM') {
+                this.morph();
+            }
         });
     },
 
