@@ -86,6 +86,11 @@ class App {
             this.updateParamTransitions();
         }
 
+        // Update audio engine with simulation state
+        if (window.audioEngine && window.audioEngine.enabled) {
+            window.audioEngine.update(this.simulation1);
+        }
+
         this.renderer1.updatePoints(this.simulation1.points);
         this.renderer1.render();
         this.renderer2.updatePoints(this.simulation2.points);
@@ -99,6 +104,9 @@ class App {
         this.simulation.runBurnIn(5000);
         for (let i = 0; i < 10000; i++) {
             this.simulation.step();
+        }
+        if (window.audioEngine) {
+            window.audioEngine.setAttractor(this.currentAttractor, this.simulation);
         }
     }
 
