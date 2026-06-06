@@ -1,4 +1,5 @@
 // WebGL 3D Point Cloud + Trail Renderer with Orbit Controls
+// Shader source is in shaders.js (SHADERS constant)
 
 class PointCloudRenderer {
     constructor(canvas) {
@@ -6,21 +7,20 @@ class PointCloudRenderer {
         this.gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
         this.points = [];
         this.pointSize = 2.0;
-        
-        // Check for WebGL errors
+
         if (!this.gl) {
             console.error('WebGL context not available');
         }
         this.camera = { theta: 0.5, phi: 1.0, radius: 50, target: [0, 0, 0] };
-        this.symmetryOrder = 0; // 0=off, 4=4-way, 6=6-way, 8=kaleidoscope
-        this.showVelocity = false; // Velocity-based coloring
+        this.symmetryOrder = 0;
+        this.showVelocity = false;
         this.dragging = false;
         this.lastMouse = { x: 0, y: 0 };
-        this.keys = {}; // WASD keyboard state
+        this.keys = {};
         this.bounds = [-30, 30, -30, 30, 0, 60];
         this.autoRotate = true;
         this.autoRotateSpeed = 0.003;
-        this.colorMode = 0; // palette index (0-6)
+        this.colorMode = 0;
         this.showTrails = false;
         this.trailAlpha = 0.15;
 
@@ -33,176 +33,63 @@ class PointCloudRenderer {
     setupShaders() {
         const gl = this.gl;
 
-        // ===== Point shaders =====
-        const pointVS = `
-            attribute vec3 aPosition;
-            attribute float aAlpha;
-            attribute float aColorIndex;
-            uniform mat4 uProjection;
-            uniform mat4 uView;
-            uniform float uPointSize;
-            uniform float uColorMode;
-            varying float vAlpha;
-            varying float vColorIndex;
-            varying vec3 vPosition;
-
-            void main() {
-                gl_Position = uProjection * uView * vec4(aPosition, 1.0);
-                gl_PointSize = uPointSize;
-                vAlpha = aAlpha;
-                vColorIndex = aColorIndex;
-                vPosition = aPosition;
+        const compileShader = (type, src) => {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+                console.error('Shader compile error:', gl.getShaderInfoLog(s));
             }
-        `;
+            return s;
+        };
 
-        const pointFS = `
-            precision mediump float;
-            varying float vAlpha;
-            varying float vColorIndex;
-            uniform float uColorMode;
-
-            vec3 palette(float t, int idx) {
-                vec3 a, b, c;
-                if (idx == 0) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(1,0.5,0.5); }
-                else if (idx == 1) { a = vec3(0.28,0.31,0.55); b = vec3(0.86,0.89,0.96); c = vec3(0.59,0.61,0.95); }
-                else if (idx == 2) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.7,0.8,1.0); }
-                else if (idx == 3) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(1.0,0.85,0.6); }
-                else if (idx == 4) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.8,0.2,1.0); }
-                else if (idx == 5) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.1,0.5,0.3); }
-                else { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.7,0.6,1.0); }
-                return a + b * cos(6.28318 * (c * t + vec3(0.0, 0.33, 0.67)));
+        const linkProgram = (vs, fs) => {
+            const p = gl.createProgram();
+            gl.attachShader(p, vs);
+            gl.attachShader(p, fs);
+            gl.linkProgram(p);
+            if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+                console.error('Program link error:', gl.getProgramInfoLog(p));
             }
+            return p;
+        };
 
-            void main() {
-                float colorT = vColorIndex;
-                int palIdx = int(uColorMode + 0.5);
-                vec3 color = palette(colorT, palIdx);
-
-                vec2 coord = gl_PointCoord - vec2(0.5);
-                float dist = length(coord);
-                if (dist > 0.5) discard;
-                float glow = 1.0 - dist * 2.0;
-                glow = pow(glow, 1.5);
-
-                gl_FragColor = vec4(color * 1.5, vAlpha * glow);
-            }
-        `;
-
-        // ===== Line shaders for trails =====
-        const lineVS = `
-            attribute vec3 aPosition;
-            attribute float aColorIndex;
-            uniform mat4 uProjection;
-            uniform mat4 uView;
-            uniform float uColorMode;
-            uniform float uTrailAlpha;
-            varying float vColorIndex;
-            varying float vAlpha;
-
-            void main() {
-                gl_Position = uProjection * uView * vec4(aPosition, 1.0);
-                vColorIndex = aColorIndex;
-                vAlpha = uTrailAlpha;
-            }
-        `;
-
-        const lineFS = `
-            precision mediump float;
-            varying float vColorIndex;
-            varying float vAlpha;
-            uniform float uColorMode;
-
-            vec3 palette(float t, int idx) {
-                vec3 a, b, c;
-                if (idx == 0) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(1,0.5,0.5); }
-                else if (idx == 1) { a = vec3(0.28,0.31,0.55); b = vec3(0.86,0.89,0.96); c = vec3(0.59,0.61,0.95); }
-                else if (idx == 2) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.7,0.8,1.0); }
-                else if (idx == 3) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(1.0,0.85,0.6); }
-                else if (idx == 4) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.8,0.2,1.0); }
-                else if (idx == 5) { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.1,0.5,0.3); }
-                else { a = vec3(0.5,0.5,0.5); b = vec3(0.5,0.5,0.5); c = vec3(0.7,0.6,1.0); }
-                return a + b * cos(6.28318 * (c * t + vec3(0.0, 0.33, 0.67)));
-            }
-
-            void main() {
-                int palIdx = int(uColorMode + 0.5);
-                vec3 color = palette(vColorIndex, palIdx);
-                gl_FragColor = vec4(color * 1.2, vAlpha);
-            }
-        `;
-
-        // Compile point program
-        const pvs = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(pvs, pointVS);
-        gl.compileShader(pvs);
-        if (!gl.getShaderParameter(pvs, gl.COMPILE_STATUS)) {
-            console.error('Point vertex shader error:', gl.getShaderInfoLog(pvs));
-        }
-
-        const pfs = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(pfs, pointFS);
-        gl.compileShader(pfs);
-        if (!gl.getShaderParameter(pfs, gl.COMPILE_STATUS)) {
-            console.error('Point fragment shader error:', gl.getShaderInfoLog(pfs));
-        }
-
-        this.pointProgram = gl.createProgram();
-        gl.attachShader(this.pointProgram, pvs);
-        gl.attachShader(this.pointProgram, pfs);
-        gl.linkProgram(this.pointProgram);
-        if (!gl.getProgramParameter(this.pointProgram, gl.LINK_STATUS)) {
-            console.error('Point program link error:', gl.getProgramInfoLog(this.pointProgram));
-        }
+        this.pointProgram = linkProgram(
+            compileShader(gl.VERTEX_SHADER, SHADERS.pointVertex),
+            compileShader(gl.FRAGMENT_SHADER, SHADERS.pointFragment)
+        );
         gl.useProgram(this.pointProgram);
 
         this.pointLocations = {
-            aPosition: gl.getAttribLocation(this.pointProgram, 'aPosition'),
-            aAlpha: gl.getAttribLocation(this.pointProgram, 'aAlpha'),
+            aPosition:   gl.getAttribLocation(this.pointProgram, 'aPosition'),
+            aAlpha:      gl.getAttribLocation(this.pointProgram, 'aAlpha'),
             aColorIndex: gl.getAttribLocation(this.pointProgram, 'aColorIndex'),
             uProjection: gl.getUniformLocation(this.pointProgram, 'uProjection'),
-            uView: gl.getUniformLocation(this.pointProgram, 'uView'),
-            uPointSize: gl.getUniformLocation(this.pointProgram, 'uPointSize'),
-            uColorMode: gl.getUniformLocation(this.pointProgram, 'uColorMode'),
+            uView:       gl.getUniformLocation(this.pointProgram, 'uView'),
+            uPointSize:  gl.getUniformLocation(this.pointProgram, 'uPointSize'),
+            uColorMode:  gl.getUniformLocation(this.pointProgram, 'uColorMode'),
         };
 
-        // Compile line program
-        const lvs = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(lvs, lineVS);
-        gl.compileShader(lvs);
-        if (!gl.getShaderParameter(lvs, gl.COMPILE_STATUS)) {
-            console.error('Line vertex shader error:', gl.getShaderInfoLog(lvs));
-        }
-
-        const lfs = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(lfs, lineFS);
-        gl.compileShader(lfs);
-        if (!gl.getShaderParameter(lfs, gl.COMPILE_STATUS)) {
-            console.error('Line fragment shader error:', gl.getShaderInfoLog(lfs));
-        }
-
-        this.lineProgram = gl.createProgram();
-        gl.attachShader(this.lineProgram, lvs);
-        gl.attachShader(this.lineProgram, lfs);
-        gl.linkProgram(this.lineProgram);
-        if (!gl.getProgramParameter(this.lineProgram, gl.LINK_STATUS)) {
-            console.error('Line program link error:', gl.getProgramInfoLog(this.lineProgram));
-        }
+        this.lineProgram = linkProgram(
+            compileShader(gl.VERTEX_SHADER, SHADERS.lineVertex),
+            compileShader(gl.FRAGMENT_SHADER, SHADERS.lineFragment)
+        );
 
         this.lineLocations = {
-            aPosition: gl.getAttribLocation(this.lineProgram, 'aPosition'),
+            aPosition:   gl.getAttribLocation(this.lineProgram, 'aPosition'),
             aColorIndex: gl.getAttribLocation(this.lineProgram, 'aColorIndex'),
             uProjection: gl.getUniformLocation(this.lineProgram, 'uProjection'),
-            uView: gl.getUniformLocation(this.lineProgram, 'uView'),
-            uColorMode: gl.getUniformLocation(this.lineProgram, 'uColorMode'),
+            uView:       gl.getUniformLocation(this.lineProgram, 'uView'),
+            uColorMode:  gl.getUniformLocation(this.lineProgram, 'uColorMode'),
             uTrailAlpha: gl.getUniformLocation(this.lineProgram, 'uTrailAlpha'),
         };
     }
 
     setupBuffers() {
-        this.positionBuffer = this.gl.createBuffer();
-        this.alphaBuffer = this.gl.createBuffer();
+        this.positionBuffer  = this.gl.createBuffer();
+        this.alphaBuffer     = this.gl.createBuffer();
         this.colorIndexBuffer = this.gl.createBuffer();
-        this.trailBuffer = this.gl.createBuffer();
+        this.trailBuffer     = this.gl.createBuffer();
         this.trailColorBuffer = this.gl.createBuffer();
 
         this.gl.clearColor(0.04, 0.04, 0.06, 1.0);
@@ -248,54 +135,27 @@ class PointCloudRenderer {
         c.addEventListener('touchend', () => { this.dragging = false; });
         window.addEventListener('resize', () => this.resize());
 
-        // Keyboard controls for WASD camera movement
-        window.addEventListener('keydown', (e) => {
-            this.keys[e.key.toLowerCase()] = true;
-        });
-        window.addEventListener('keyup', (e) => {
-            this.keys[e.key.toLowerCase()] = false;
-        });
+        window.addEventListener('keydown', (e) => { this.keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup',   (e) => { this.keys[e.key.toLowerCase()] = false; });
     }
 
-    // Update camera target based on WASD input
     updateCameraTarget() {
         const speed = 0.5;
         const t = this.camera.theta;
-        // Forward direction in camera's orbital plane (W/S)
-        const fwdX = Math.cos(t);
-        const fwdZ = Math.sin(t);
-        // Right direction (A/D)
-        const rightX = -Math.sin(t);
-        const rightZ = Math.cos(t);
+        const fwdX = Math.cos(t), fwdZ = Math.sin(t);
+        const rightX = -Math.sin(t), rightZ = Math.cos(t);
 
-        if (this.keys['w']) {
-            this.camera.target[0] += fwdX * speed;
-            this.camera.target[2] += fwdZ * speed;
-        }
-        if (this.keys['s']) {
-            this.camera.target[0] -= fwdX * speed;
-            this.camera.target[2] -= fwdZ * speed;
-        }
-        if (this.keys['a']) {
-            this.camera.target[0] += rightX * speed;
-            this.camera.target[2] += rightZ * speed;
-        }
-        if (this.keys['d']) {
-            this.camera.target[0] -= rightX * speed;
-            this.camera.target[2] -= rightZ * speed;
-        }
-        // Q/E for vertical movement (up/down)
-        if (this.keys['q']) {
-            this.camera.target[1] += speed;
-        }
-        if (this.keys['e']) {
-            this.camera.target[1] -= speed;
-        }
+        if (this.keys['w']) { this.camera.target[0] += fwdX * speed;   this.camera.target[2] += fwdZ * speed; }
+        if (this.keys['s']) { this.camera.target[0] -= fwdX * speed;   this.camera.target[2] -= fwdZ * speed; }
+        if (this.keys['a']) { this.camera.target[0] += rightX * speed; this.camera.target[2] += rightZ * speed; }
+        if (this.keys['d']) { this.camera.target[0] -= rightX * speed; this.camera.target[2] -= rightZ * speed; }
+        if (this.keys['q']) { this.camera.target[1] += speed; }
+        if (this.keys['e']) { this.camera.target[1] -= speed; }
     }
 
     resize() {
         const dpr = window.devicePixelRatio || 1;
-        this.canvas.width = this.canvas.clientWidth * dpr;
+        this.canvas.width  = this.canvas.clientWidth * dpr;
         this.canvas.height = this.canvas.clientHeight * dpr;
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     }
@@ -312,16 +172,18 @@ class PointCloudRenderer {
     }
 
     lookAt(eye, center, up) {
-        const zx = eye[0] - center[0], zy = eye[1] - center[1], zz = eye[2] - center[2];
-        let len = 1 / Math.sqrt(zx * zx + zy * zy + zz * zz);
-        const z = [zx * len, zy * len, zz * len];
-        const xx = up[1] * z[2] - up[2] * z[1], xy = up[2] * z[0] - up[0] * z[2], xz = up[0] * z[1] - up[1] * z[0];
-        len = 1 / Math.sqrt(xx * xx + xy * xy + xz * xz);
-        const x = [xx * len, xy * len, xz * len];
-        const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+        const zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+        let len = 1 / Math.sqrt(zx*zx + zy*zy + zz*zz);
+        const z = [zx*len, zy*len, zz*len];
+        const xx = up[1]*z[2]-up[2]*z[1], xy = up[2]*z[0]-up[0]*z[2], xz = up[0]*z[1]-up[1]*z[0];
+        len = 1 / Math.sqrt(xx*xx + xy*xy + xz*xz);
+        const x = [xx*len, xy*len, xz*len];
+        const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
         return new Float32Array([
             x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0,
-            -(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]), -(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]), -(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]), 1
+            -(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]),
+            -(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]),
+            -(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]), 1
         ]);
     }
 
@@ -345,7 +207,6 @@ class PointCloudRenderer {
         if (!this.points || this.points.length === 0) return;
         const n = this.points.length;
 
-        // Update camera target from WASD input
         this.updateCameraTarget();
 
         if (this.autoRotate) {
@@ -360,20 +221,18 @@ class PointCloudRenderer {
         gl.enable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
 
-        // Draw trails first (behind points)
         if (this.showTrails && n > 1) {
-            const trailCount = Math.min(n - 1, 8000); // Limit trail segments for performance
+            const trailCount = Math.min(n - 1, 8000);
             const trailPositions = new Float32Array(trailCount * 6);
-            const trailColors = new Float32Array(trailCount * 2);
+            const trailColors    = new Float32Array(trailCount * 2);
 
             for (let i = 0; i < trailCount; i++) {
-                const p1 = this.points[i];
-                const p2 = this.points[i + 1];
+                const p1 = this.points[i], p2 = this.points[i + 1];
                 const idx = i * 6;
-                trailPositions[idx] = p1[0]; trailPositions[idx+1] = p1[1]; trailPositions[idx+2] = p1[2];
+                trailPositions[idx]   = p1[0]; trailPositions[idx+1] = p1[1]; trailPositions[idx+2] = p1[2];
                 trailPositions[idx+3] = p2[0]; trailPositions[idx+4] = p2[1]; trailPositions[idx+5] = p2[2];
-                const cIdx = i * 2;
-                trailColors[cIdx] = i / n; trailColors[cIdx+1] = (i + 1) / n;
+                trailColors[i*2]   = i / n;
+                trailColors[i*2+1] = (i+1) / n;
             }
 
             gl.useProgram(this.lineProgram);
@@ -395,19 +254,15 @@ class PointCloudRenderer {
             gl.drawArrays(gl.LINES, 0, trailCount * 2);
         }
 
-        // Draw points with symmetry & velocity coloring
-        const positions = new Float32Array(n * 3);
-        const alphas = new Float32Array(n);
+        const positions    = new Float32Array(n * 3);
+        const alphas       = new Float32Array(n);
         const colorIndices = new Float32Array(n);
 
         for (let i = 0; i < n; i++) {
             const p = this.points[i];
-            positions[i * 3] = p[0];
-            positions[i * 3 + 1] = p[1];
-            positions[i * 3 + 2] = p[2];
-            
+            positions[i*3] = p[0]; positions[i*3+1] = p[1]; positions[i*3+2] = p[2];
+
             if (this.showVelocity && i > 0) {
-                // Color by velocity (speed of trajectory)
                 const prev = this.points[i - 1];
                 const vel = Math.sqrt((p[0]-prev[0])**2 + (p[1]-prev[1])**2 + (p[2]-prev[2])**2);
                 const normVel = Math.min(vel / 0.5, 1.0);
@@ -419,7 +274,6 @@ class PointCloudRenderer {
             }
         }
 
-        // Apply symmetry if enabled
         let finalPositions = positions;
         let finalCount = n;
         if (this.symmetryOrder > 0) {
@@ -434,7 +288,6 @@ class PointCloudRenderer {
         gl.enableVertexAttribArray(this.pointLocations.aPosition);
         gl.vertexAttribPointer(this.pointLocations.aPosition, 3, gl.FLOAT, false, 0, 0);
 
-        // Alpha & color buffers (repeat for symmetry)
         const symAlphas = new Float32Array(finalCount);
         const symColors = new Float32Array(finalCount);
         for (let i = 0; i < finalCount; i++) {
@@ -460,77 +313,50 @@ class PointCloudRenderer {
         gl.drawArrays(gl.POINTS, 0, finalCount);
     }
 
-    setColorPalette(index) {
-        this.colorMode = index;
-    }
+    setColorPalette(index)  { this.colorMode = index; }
+    setSymmetryMode(order)  { this.symmetryOrder = order; }
+    toggleVelocityColor()   { this.showVelocity = !this.showVelocity; }
 
-    setSymmetryMode(order) {
-        this.symmetryOrder = order;
-    }
-
-    toggleVelocityColor() {
-        this.showVelocity = !this.showVelocity;
-    }
-
-    // Vector field rendering
     renderVectorField(simulation, phi, theta) {
-        const gl = this.gl;
         const nGrid = 15;
         const vectors = [];
-        const palIdx = this.colorMode;
-        
-        // Define normal for the slice plane
         const n = [
             Math.sin(theta) * Math.cos(phi),
             Math.sin(theta) * Math.sin(phi),
             Math.cos(theta)
         ];
 
-        // Orthonormal basis for the plane
-        // Simplified approach: find 2 vectors perpendicular to n
         let tangent1 = [0, 1, 0];
         if (Math.abs(n[1]) > 0.9) tangent1 = [1, 0, 0];
         const tangent2 = [
-            n[1] * tangent1[2] - n[2] * tangent1[1],
-            n[2] * tangent1[0] - n[0] * tangent1[2],
-            n[0] * tangent1[1] - n[1] * tangent1[0]
+            n[1]*tangent1[2] - n[2]*tangent1[1],
+            n[2]*tangent1[0] - n[0]*tangent1[2],
+            n[0]*tangent1[1] - n[1]*tangent1[0]
         ];
         tangent1 = [
-            n[1] * tangent2[2] - n[2] * tangent2[1],
-            n[2] * tangent2[0] - n[0] * tangent2[2],
-            n[0] * tangent2[1] - n[1] * tangent2[0]
+            n[1]*tangent2[2] - n[2]*tangent2[1],
+            n[2]*tangent2[0] - n[0]*tangent2[2],
+            n[0]*tangent2[1] - n[1]*tangent2[0]
         ];
 
-        // Generate grid points on the plane + calculate velocity
         for (let i = -nGrid; i <= nGrid; i++) {
             for (let j = -nGrid; j <= nGrid; j++) {
-                const u = i * 2;
-                const v = j * 2;
+                const u = i * 2, v = j * 2;
                 const pos = [
-                    u * tangent1[0] + v * tangent2[0],
-                    u * tangent1[1] + v * tangent2[1],
-                    u * tangent1[2] + v * tangent2[2]
+                    u*tangent1[0] + v*tangent2[0],
+                    u*tangent1[1] + v*tangent2[1],
+                    u*tangent1[2] + v*tangent2[2]
                 ];
-                
                 const vel = simulation.getVelocity(pos[0], pos[1], pos[2]);
-                // Project velocity onto plane
-                const dot = vel[0] * n[0] + vel[1] * n[1] + vel[2] * n[2];
-                const projVel = [
-                    vel[0] - dot * n[0],
-                    vel[1] - dot * n[1],
-                    vel[2] - dot * n[2]
-                ];
-                
+                const dot = vel[0]*n[0] + vel[1]*n[1] + vel[2]*n[2];
+                const projVel = [vel[0]-dot*n[0], vel[1]-dot*n[1], vel[2]-dot*n[2]];
                 const mag = Math.sqrt(projVel[0]**2 + projVel[1]**2 + projVel[2]**2);
                 if (mag > 0.001) {
                     vectors.push(pos[0], pos[1], pos[2]);
-                    vectors.push(pos[0] + projVel[0] / mag * 1.5, pos[1] + projVel[1] / mag * 1.5, pos[2] + projVel[2] / mag * 1.5);
+                    vectors.push(pos[0]+projVel[0]/mag*1.5, pos[1]+projVel[1]/mag*1.5, pos[2]+projVel[2]/mag*1.5);
                 }
             }
         }
-        
-        // This would require a new line program call or updating the trail logic.
-        // For now, let's just log the data as a proof of concept.
         console.log(`Generated ${vectors.length / 6} vectors for field`);
     }
 
@@ -543,10 +369,8 @@ class PointCloudRenderer {
             const cosA = Math.cos(k * angle);
             const sinA = Math.sin(k * angle);
             for (let i = 0; i < n; i++) {
-                const x = positions[i * 3];
-                const y = positions[i * 3 + 1];
-                const z = positions[i * 3 + 2];
-                result.push(x * cosA - y * sinA, x * sinA + y * cosA, z);
+                const x = positions[i*3], y = positions[i*3+1], z = positions[i*3+2];
+                result.push(x*cosA - y*sinA, x*sinA + y*cosA, z);
             }
         }
         return result;
@@ -560,8 +384,8 @@ class PointCloudRenderer {
 
     resetCamera() {
         this.camera.target = [0, 0, 0];
-        this.camera.theta = 0.5;
-        this.camera.phi = 1.0;
+        this.camera.theta  = 0.5;
+        this.camera.phi    = 1.0;
         this.camera.radius = 50;
     }
 }
