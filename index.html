@@ -154,6 +154,17 @@
             top: 100px;
             right: 20px;
             width: 300px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+
+        #right-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #right-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
         }
 
         .param-group {
