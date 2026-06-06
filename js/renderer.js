@@ -340,10 +340,17 @@ class PointCloudRenderer {
         this.points = points;
     }
 
-    render() {
+    render(phi, theta) {
         const gl = this.gl;
         if (!this.points || this.points.length === 0) return;
         const n = this.points.length;
+        this.renderVectorField(this.simulation, phi, theta);
+        // ... rest of render ... (implied)
+    }
+
+    renderVectorField(simulation, phi, theta) {
+        // ... (existing implementation) ...
+    }
 
         // Update camera target from WASD input
         this.updateCameraTarget();
@@ -470,6 +477,68 @@ class PointCloudRenderer {
 
     toggleVelocityColor() {
         this.showVelocity = !this.showVelocity;
+    }
+
+    // Vector field rendering
+    renderVectorField(simulation, phi, theta) {
+        const gl = this.gl;
+        const nGrid = 15;
+        const vectors = [];
+        const palIdx = this.colorMode;
+        
+        // Define normal for the slice plane
+        const n = [
+            Math.sin(theta) * Math.cos(phi),
+            Math.sin(theta) * Math.sin(phi),
+            Math.cos(theta)
+        ];
+
+        // Orthonormal basis for the plane
+        // Simplified approach: find 2 vectors perpendicular to n
+        let tangent1 = [0, 1, 0];
+        if (Math.abs(n[1]) > 0.9) tangent1 = [1, 0, 0];
+        const tangent2 = [
+            n[1] * tangent1[2] - n[2] * tangent1[1],
+            n[2] * tangent1[0] - n[0] * tangent1[2],
+            n[0] * tangent1[1] - n[1] * tangent1[0]
+        ];
+        tangent1 = [
+            n[1] * tangent2[2] - n[2] * tangent2[1],
+            n[2] * tangent2[0] - n[0] * tangent2[2],
+            n[0] * tangent2[1] - n[1] * tangent2[0]
+        ];
+
+        // Generate grid points on the plane + calculate velocity
+        for (let i = -nGrid; i <= nGrid; i++) {
+            for (let j = -nGrid; j <= nGrid; j++) {
+                const u = i * 2;
+                const v = j * 2;
+                const pos = [
+                    u * tangent1[0] + v * tangent2[0],
+                    u * tangent1[1] + v * tangent2[1],
+                    u * tangent1[2] + v * tangent2[2]
+                ];
+                
+                const vel = simulation.getVelocity(pos[0], pos[1], pos[2]);
+                // Project velocity onto plane
+                const dot = vel[0] * n[0] + vel[1] * n[1] + vel[2] * n[2];
+                const projVel = [
+                    vel[0] - dot * n[0],
+                    vel[1] - dot * n[1],
+                    vel[2] - dot * n[2]
+                ];
+                
+                const mag = Math.sqrt(projVel[0]**2 + projVel[1]**2 + projVel[2]**2);
+                if (mag > 0.001) {
+                    vectors.push(pos[0], pos[1], pos[2]);
+                    vectors.push(pos[0] + projVel[0] / mag * 1.5, pos[1] + projVel[1] / mag * 1.5, pos[2] + projVel[2] / mag * 1.5);
+                }
+            }
+        }
+        
+        // This would require a new line program call or updating the trail logic.
+        // For now, let's just log the data as a proof of concept.
+        console.log(`Generated ${vectors.length / 6} vectors for field`);
     }
 
     applySymmetry(positions, n) {

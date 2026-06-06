@@ -447,6 +447,12 @@
 
         <div class="panel-title" style="margin-top: 20px;">Rendering</div>
         <div class="param-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="param-name">Surface View</span>
+                <button id="toggle-mesh" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.6); padding:4px 10px; border-radius:4px; font-size:10px; cursor:pointer; letter-spacing:1px;">OFF</button>
+            </div>
+        </div>
+        <div class="param-group">
             <div class="param-label">
                 <span class="param-name">Point Size</span>
                 <span class="param-value" id="point-size-value">2.0</span>
@@ -515,6 +521,30 @@
             <div style="text-align:center;">
                 <canvas id="phase-yz" width="80" height="80" style="width:80px;height:80px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);"></canvas>
                 <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:4px;">YZ</div>
+            </div>
+        </div>
+
+        <div id="phase-space-panel">
+            <div class="panel-title" style="margin-top: 20px;">Phase Space Explorer</div>
+            <div class="param-group">
+                <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                    <span class="param-name">Explorer Enabled</span>
+                    <input type="checkbox" id="phase-explorer-toggle">
+                </label>
+            </div>
+            <div class="param-group">
+                <div class="param-label">
+                    <span class="param-name">Slice Plane Φ</span>
+                    <span class="param-value" id="phi-value">0°</span>
+                </div>
+                <input type="range" id="phi-range" min="0" max="360" step="1" value="0">
+            </div>
+            <div class="param-group">
+                <div class="param-label">
+                    <span class="param-name">Slice Plane Θ</span>
+                    <span class="param-value" id="theta-value">0°</span>
+                </div>
+                <input type="range" id="theta-range" min="0" max="360" step="1" value="0">
             </div>
         </div>
 
@@ -601,10 +631,40 @@
             <span class="bottom-label">Animation</span>
             <span class="bottom-value" id="stat-animation">OFF</span>
         </div>
+        <div class="bottom-item" id="toggle-audio" style="cursor:pointer;">
+            <span class="bottom-label">Audio</span>
+            <span class="bottom-value" id="stat-audio">OFF</span>
+        </div>
+    </div>
+
+    <!-- Audio Volume Panel (appears when audio is toggled) -->
+    <div id="audio-panel" style="display:none; position:fixed; bottom:90px; right:30px; padding:15px 20px; background:rgba(15,15,25,0.85); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.08); border-radius:12px; z-index:25; min-width:200px;">
+        <div class="panel-title">Generative Audio</div>
+        <div id="audio-signature" style="font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:10px; letter-spacing:1px;"></div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Volume</span>
+                <span class="param-value" id="audio-volume-value">30%</span>
+            </div>
+            <input type="range" id="audio-volume" min="0" max="100" step="1" value="30">
+        </div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Frequency</span>
+                <span class="param-value" id="audio-freq-value">-- Hz</span>
+            </div>
+        </div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Amplitude</span>
+                <span class="param-value" id="audio-amp-value">--</span>
+            </div>
+        </div>
     </div>
 
     <script src="js/attractors.js"></script>
     <script src="js/renderer.js"></script>
+    <script src="js/audio.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

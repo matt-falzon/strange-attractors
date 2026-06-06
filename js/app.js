@@ -31,6 +31,7 @@ class App {
         this.buildAttractorList();
         this.setupPaletteButtons();
         this.setupControls();
+        this.setupAudio();
 
         // Remove loading screen
         document.getElementById('loading').style.display = 'none';
@@ -70,6 +71,9 @@ class App {
 
         // Update bottom bar
         document.getElementById('stat-attractor').textContent = attractor.name;
+
+        // Update audio
+        this.updateAudio();
     }
 
     buildAttractorList() {
@@ -243,6 +247,13 @@ class App {
             document.getElementById('stat-rotate').textContent = this.renderer.autoRotate ? 'ON' : 'OFF';
         });
 
+        // Mesh toggle
+        document.getElementById('toggle-mesh').addEventListener('click', (e) => {
+             const btn = e.target;
+             this.renderer.showMesh = !this.renderer.showMesh;
+             btn.textContent = this.renderer.showMesh ? 'ON' : 'OFF';
+        });
+
         // Setup bifurcation diagram
         this.setupBifurcation();
         this.setupSymmetryControls();
@@ -379,6 +390,63 @@ class App {
         const sliderEl = document.querySelector(`input[data-param="${this.paramAnimParam}"]`);
         if (valueEl) valueEl.textContent = animValue.toFixed(3);
         if (sliderEl) sliderEl.value = animValue;
+    }
+
+    setupAudio() {
+        // Audio toggle (bottom bar)
+        const toggleAudio = document.getElementById('toggle-audio');
+        if (toggleAudio) {
+            toggleAudio.addEventListener('click', () => {
+                const wasEnabled = window.audioEngine.enabled;
+                window.audioEngine.toggle();
+                const isEnabled = window.audioEngine.enabled;
+                document.getElementById('stat-audio').textContent = isEnabled ? 'ON' : 'OFF';
+                document.getElementById('stat-audio').style.color = isEnabled ? '#64b5f6' : '';
+
+                // Show/hide audio panel
+                const panel = document.getElementById('audio-panel');
+                panel.style.display = isEnabled ? 'block' : 'none';
+
+                // Update signature display
+                this.updateAudioSignature();
+            });
+        }
+
+        // Volume slider
+        const volumeSlider = document.getElementById('audio-volume');
+        if (volumeSlider) {
+            volumeSlider.addEventListener('input', (e) => {
+                const vol = parseInt(e.target.value) / 100;
+                window.audioEngine.setVolume(vol);
+                document.getElementById('audio-volume-value').textContent = `${Math.round(vol * 100)}%`;
+            });
+        }
+
+        // Set initial volume
+        window.audioEngine.setVolume(0.3);
+    }
+
+    updateAudio() {
+        // Notify audio engine of the current attractor and simulation state
+        window.audioEngine.setAttractor(this.currentAttractor, this.simulation);
+        this.updateAudioSignature();
+    }
+
+    updateAudioSignature() {
+        const sig = window.audioEngine.signatures[this.currentAttractor] || window.audioEngine.defaultSignature;
+        const el = document.getElementById('audio-signature');
+        if (el) {
+            el.textContent = `${sig.type.toUpperCase()} • ${sig.description}`;
+        }
+    }
+
+    updateAudioDisplay() {
+        // Update live audio state display in the audio panel
+        const state = window.audioEngine.getState();
+        const freqEl = document.getElementById('audio-freq-value');
+        const ampEl = document.getElementById('audio-amp-value');
+        if (freqEl) freqEl.textContent = `${Math.round(state.frequency)} Hz`;
+        if (ampEl) ampEl.textContent = state.amplitude.toFixed(3);
     }
 
     setupBifurcation() {
@@ -523,6 +591,11 @@ class App {
         this.renderer.updatePoints(this.simulation.points);
         this.renderer.render();
 
+        // Update audio engine
+        if (window.audioEngine && window.audioEngine.enabled) {
+            window.audioEngine.update(this.simulation.position);
+        }
+
         // Update phase space views
         this.updatePhaseSpace();
 
@@ -537,6 +610,9 @@ class App {
             // Update stats
             document.getElementById('stat-points').textContent = this.simulation.points.length.toLocaleString();
             document.getElementById('stat-fps').textContent = this.fps;
+
+            // Update Audio display
+            this.updateAudioDisplay();
 
             // Update Lyapunov exponent display
             const lyap = this.simulation.getMaxLyapunovExponent();
