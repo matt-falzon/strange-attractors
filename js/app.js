@@ -266,10 +266,7 @@ class App {
             if (e.code === 'KeyB') {
                 this.toggleBifurcation();
             }
-            if (e.code === 'KeyS') {
-                e.preventDefault();
-                this.screenshot();
-            }
+   
             if (e.code === 'KeyE') {
                 const eqPanel = document.getElementById('equation-panel');
                 eqPanel.style.display = eqPanel.style.display === 'none' ? 'block' : 'none';
@@ -278,7 +275,7 @@ class App {
                 this.renderer.toggleVelocityColor();
                 document.getElementById('stat-velocity').textContent = this.renderer.showVelocity ? 'ON' : 'OFF';
             }
-            if (e.code === 'KeyA') {
+            if (e.code === 'KeyF') {
                 this.paramAnimation = this.paramAnimation ? null : { active: true };
                 document.getElementById('stat-animation').textContent = this.paramAnimation ? 'ON' : 'OFF';
             }

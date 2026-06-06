@@ -93,9 +93,13 @@ npx serve .
 - `WASD` - Move camera
 - `Q/E` - Move camera up/down
 - `Home` - Reset camera
-- `S` - Take screenshot (downloads PNG)
 - `Space` - Pause/Resume simulation
 - `R` - Random attractor
+- `F` - Toggle animation
+- `V` - Toggle velocity coloring
+- `T` - Toggle trails
+- `Y` - Cycle symmetry modes
+- `Arrow Left/Right` - Previous/Next attractor
 
 ## How It Works
 
