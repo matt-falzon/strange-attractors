@@ -400,6 +400,16 @@ class AttractorSimulation {
     constructor(attractorKey) {
         this.key = attractorKey;
         this.attractor = ATTRACTORS[attractorKey];
+        
+        // Validate attractor exists
+        if (!this.attractor) {
+            console.error(`Attractor "${attractorKey}" not found in ATTRACTORS`);
+            this.points = [];
+            this.position = [0, 0, 0];
+            this.params = {};
+            return;
+        }
+        
         this.params = { ...this.attractor.params };
         this.position = [...this.attractor.init];
         this.points = [];
@@ -410,13 +420,15 @@ class AttractorSimulation {
 
     // Euler integration step with NaN/Infinity protection
     step() {
+        if (!this.attractor || !this.attractor.step) return;
+        
         const newPos = this.attractor.step(
             this.position[0], this.position[1], this.position[2],
             this.h, this.params
         );
 
         // Check for NaN/Infinity and reset if needed
-        if (!isFinite(newPos[0]) || !isFinite(newPos[1]) || !isFinite(newPos[2])) {
+        if (!newPos || !isFinite(newPos[0]) || !isFinite(newPos[1]) || !isFinite(newPos[2])) {
             this.position = [...this.attractor.init];
             return;
         }

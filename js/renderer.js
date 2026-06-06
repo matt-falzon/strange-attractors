@@ -6,6 +6,11 @@ class PointCloudRenderer {
         this.gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
         this.points = [];
         this.pointSize = 2.0;
+        
+        // Check for WebGL errors
+        if (!this.gl) {
+            console.error('WebGL context not available');
+        }
         this.camera = { theta: 0.5, phi: 1.0, radius: 50 };
         this.symmetryOrder = 0; // 0=off, 4=4-way, 6=6-way, 8=kaleidoscope
         this.showVelocity = false; // Velocity-based coloring
@@ -129,15 +134,24 @@ class PointCloudRenderer {
         const pvs = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(pvs, pointVS);
         gl.compileShader(pvs);
+        if (!gl.getShaderParameter(pvs, gl.COMPILE_STATUS)) {
+            console.error('Point vertex shader error:', gl.getShaderInfoLog(pvs));
+        }
 
         const pfs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(pfs, pointFS);
         gl.compileShader(pfs);
+        if (!gl.getShaderParameter(pfs, gl.COMPILE_STATUS)) {
+            console.error('Point fragment shader error:', gl.getShaderInfoLog(pfs));
+        }
 
         this.pointProgram = gl.createProgram();
         gl.attachShader(this.pointProgram, pvs);
         gl.attachShader(this.pointProgram, pfs);
         gl.linkProgram(this.pointProgram);
+        if (!gl.getProgramParameter(this.pointProgram, gl.LINK_STATUS)) {
+            console.error('Point program link error:', gl.getProgramInfoLog(this.pointProgram));
+        }
         gl.useProgram(this.pointProgram);
 
         this.pointLocations = {
@@ -154,15 +168,24 @@ class PointCloudRenderer {
         const lvs = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(lvs, lineVS);
         gl.compileShader(lvs);
+        if (!gl.getShaderParameter(lvs, gl.COMPILE_STATUS)) {
+            console.error('Line vertex shader error:', gl.getShaderInfoLog(lvs));
+        }
 
         const lfs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(lfs, lineFS);
         gl.compileShader(lfs);
+        if (!gl.getShaderParameter(lfs, gl.COMPILE_STATUS)) {
+            console.error('Line fragment shader error:', gl.getShaderInfoLog(lfs));
+        }
 
         this.lineProgram = gl.createProgram();
         gl.attachShader(this.lineProgram, lvs);
         gl.attachShader(this.lineProgram, lfs);
         gl.linkProgram(this.lineProgram);
+        if (!gl.getProgramParameter(this.lineProgram, gl.LINK_STATUS)) {
+            console.error('Line program link error:', gl.getProgramInfoLog(this.lineProgram));
+        }
 
         this.lineLocations = {
             aPosition: gl.getAttribLocation(this.lineProgram, 'aPosition'),
@@ -269,8 +292,8 @@ class PointCloudRenderer {
 
     render() {
         const gl = this.gl;
+        if (!this.points || this.points.length === 0) return;
         const n = this.points.length;
-        if (n === 0) return;
 
         if (this.autoRotate) {
             this.camera.theta += this.autoRotateSpeed;

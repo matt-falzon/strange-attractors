@@ -43,6 +43,9 @@ class App {
         this.currentAttractor = key;
         const attractor = ATTRACTORS[key];
 
+        console.log(`Loading attractor: ${key}`);
+        console.log(`Attractor data:`, attractor);
+
         // Create simulation
         this.simulation = new AttractorSimulation(key);
 
@@ -56,6 +59,8 @@ class App {
         for (let i = 0; i < 10000; i++) {
             this.simulation.step();
         }
+
+        console.log(`Simulation points: ${this.simulation.points.length}`);
 
         // Update UI
         this.updateAttractorList();
@@ -501,6 +506,12 @@ class App {
     }
 
      animate() {
+        // Ensure simulation exists
+        if (!this.simulation) {
+            console.error('Simulation not initialized');
+            return;
+        }
+
         // Add new points for live animation with Lyapunov tracking
         if (!this.isPaused) {
             for (let i = 0; i < 10; i++) {
