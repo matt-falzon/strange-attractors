@@ -344,13 +344,6 @@ class PointCloudRenderer {
         const gl = this.gl;
         if (!this.points || this.points.length === 0) return;
         const n = this.points.length;
-        this.renderVectorField(this.simulation, phi, theta);
-        // ... rest of render ... (implied)
-    }
-
-    renderVectorField(simulation, phi, theta) {
-        // ... (existing implementation) ...
-    }
 
         // Update camera target from WASD input
         this.updateCameraTarget();
