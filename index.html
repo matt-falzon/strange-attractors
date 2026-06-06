@@ -93,17 +93,28 @@
             top: 100px;
             left: 20px;
             width: 280px;
-            max-height: calc(100vh - 140px);
-            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+            overflow-y: scroll;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 150, 255, 0.5) transparent;
         }
 
         #left-panel::-webkit-scrollbar {
-            width: 4px;
+            width: 6px;
+        }
+
+        #left-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
         }
 
         #left-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
+            background: rgba(100, 150, 255, 0.5);
+            border-radius: 3px;
+        }
+
+        #left-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 150, 255, 0.8);
         }
 
         .panel-title {
@@ -154,17 +165,28 @@
             top: 100px;
             right: 20px;
             width: 300px;
-            max-height: calc(100vh - 140px);
-            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+            overflow-y: scroll;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 150, 255, 0.5) transparent;
         }
 
         #right-panel::-webkit-scrollbar {
-            width: 4px;
+            width: 6px;
+        }
+
+        #right-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
         }
 
         #right-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
+            background: rgba(100, 150, 255, 0.5);
+            border-radius: 3px;
+        }
+
+        #right-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 150, 255, 0.8);
         }
 
         .param-group {
