@@ -549,6 +549,118 @@
             #equation-panel, #description { width: calc(100vw - 40px); }
             #bottom-bar { gap: 15px; padding: 10px 15px; }
         }
+
+        /* Morph Overlay */
+        #morph-overlay {
+            background: rgba(5, 5, 15, 0.92);
+            backdrop-filter: blur(8px);
+            animation: morph-fade-in 0.3s ease forwards;
+        }
+
+        #morph-overlay.fade-out {
+            animation: morph-fade-out 0.4s ease forwards;
+        }
+
+        @keyframes morph-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes morph-fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .morph-overlay-content {
+            position: relative;
+            text-align: center;
+            padding: 60px 80px;
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            border-radius: 16px;
+            background: rgba(10, 10, 20, 0.6);
+            overflow: hidden;
+        }
+
+        .morph-overlay-content::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(100, 150, 255, 0.03) 2px,
+                rgba(100, 150, 255, 0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .morph-scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(100, 150, 255, 0.4), transparent);
+            animation: morph-scan 2s linear infinite;
+            z-index: 2;
+        }
+
+        @keyframes morph-scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        .morph-title {
+            font-size: 24px;
+            font-weight: 200;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: rgba(150, 200, 255, 0.9);
+            text-shadow: 0 0 20px rgba(100, 150, 255, 0.4);
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .morph-subtitle {
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: rgba(150, 200, 255, 0.5);
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .morph-progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .morph-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4a6fa5, #6496ff, #8ab4ff);
+            border-radius: 2px;
+            transition: width 0.1s linear;
+            box-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+        }
+
+        .morph-percent {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: rgba(150, 200, 255, 0.7);
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 3;
+        }
     </style>
 </head>
 <body>
@@ -570,6 +682,19 @@
 
     <div id="error" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); padding:30px; background:rgba(255,0,0,0.1); border:1px solid rgba(255,0,0,0.3); border-radius:12px; text-align:center; z-index:100; font-family: monospace; color: #ff6b6b;"></div>
 
+    <!-- Morph Overlay -->
+    <div id="morph-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:60; align-items:center; justify-content:center;">
+        <div class="morph-overlay-content">
+            <div class="morph-scanline"></div>
+            <div class="morph-title">TRANSFORMING</div>
+            <div class="morph-subtitle" id="morph-subtitle">Morphing attractors...</div>
+            <div class="morph-progress-track">
+                <div class="morph-progress-bar" id="morph-progress-bar"></div>
+            </div>
+            <div class="morph-percent" id="morph-percent">0%</div>
+        </div>
+    </div>
+
     <div id="header">
       <div>
           <div id="title"><span>Strange</span> Attractors</div>
@@ -577,6 +702,7 @@
       </div>
       <div style="display:flex; gap:10px;">
           <button onclick="app.screenshot()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:8px; font-size:11px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">📷 Screenshot (S)</button>
+          <button onclick="app.morph()" style="background:rgba(100,150,255,0.15); border:1px solid rgba(100,150,255,0.3); color:rgba(150,200,255,0.9); padding:8px 16px; border-radius:8px; font-size:11px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">🔄 Morph</button>
           <button onclick="app.randomAttractor()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:8px; font-size:11px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">🎲 Random</button>
       </div>
     </div>
