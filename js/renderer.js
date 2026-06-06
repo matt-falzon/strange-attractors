@@ -11,11 +11,12 @@ class PointCloudRenderer {
         if (!this.gl) {
             console.error('WebGL context not available');
         }
-        this.camera = { theta: 0.5, phi: 1.0, radius: 50 };
+        this.camera = { theta: 0.5, phi: 1.0, radius: 50, target: [0, 0, 0] };
         this.symmetryOrder = 0; // 0=off, 4=4-way, 6=6-way, 8=kaleidoscope
         this.showVelocity = false; // Velocity-based coloring
         this.dragging = false;
         this.lastMouse = { x: 0, y: 0 };
+        this.keys = {}; // WASD keyboard state
         this.bounds = [-30, 30, -30, 30, 0, 60];
         this.autoRotate = true;
         this.autoRotateSpeed = 0.003;
@@ -246,6 +247,50 @@ class PointCloudRenderer {
         }, { passive: false });
         c.addEventListener('touchend', () => { this.dragging = false; });
         window.addEventListener('resize', () => this.resize());
+
+        // Keyboard controls for WASD camera movement
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.key.toLowerCase()] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.key.toLowerCase()] = false;
+        });
+    }
+
+    // Update camera target based on WASD input
+    updateCameraTarget() {
+        const speed = 0.5;
+        const t = this.camera.theta;
+        // Forward direction in camera's orbital plane (W/S)
+        const fwdX = Math.cos(t);
+        const fwdZ = Math.sin(t);
+        // Right direction (A/D)
+        const rightX = -Math.sin(t);
+        const rightZ = Math.cos(t);
+
+        if (this.keys['w']) {
+            this.camera.target[0] += fwdX * speed;
+            this.camera.target[2] += fwdZ * speed;
+        }
+        if (this.keys['s']) {
+            this.camera.target[0] -= fwdX * speed;
+            this.camera.target[2] -= fwdZ * speed;
+        }
+        if (this.keys['a']) {
+            this.camera.target[0] += rightX * speed;
+            this.camera.target[2] += rightZ * speed;
+        }
+        if (this.keys['d']) {
+            this.camera.target[0] -= rightX * speed;
+            this.camera.target[2] -= rightZ * speed;
+        }
+        // Q/E for vertical movement (up/down)
+        if (this.keys['q']) {
+            this.camera.target[1] += speed;
+        }
+        if (this.keys['e']) {
+            this.camera.target[1] -= speed;
+        }
     }
 
     resize() {
@@ -282,8 +327,13 @@ class PointCloudRenderer {
 
     getViewMatrix() {
         const r = this.camera.radius, t = this.camera.theta, p = this.camera.phi;
-        const eye = [r*Math.sin(p)*Math.cos(t), r*Math.cos(p), r*Math.sin(p)*Math.sin(t)];
-        return this.lookAt(eye, [0, 0, 0], [0, 1, 0]);
+        const target = this.camera.target;
+        const eye = [
+            target[0] + r*Math.sin(p)*Math.cos(t),
+            target[1] + r*Math.cos(p),
+            target[2] + r*Math.sin(p)*Math.sin(t)
+        ];
+        return this.lookAt(eye, target, [0, 1, 0]);
     }
 
     updatePoints(points) {
@@ -294,6 +344,9 @@ class PointCloudRenderer {
         const gl = this.gl;
         if (!this.points || this.points.length === 0) return;
         const n = this.points.length;
+
+        // Update camera target from WASD input
+        this.updateCameraTarget();
 
         if (this.autoRotate) {
             this.camera.theta += this.autoRotateSpeed;
@@ -441,5 +494,12 @@ class PointCloudRenderer {
         this.bounds = bounds;
         const maxRange = Math.max(bounds[1]-bounds[0], bounds[3]-bounds[2], bounds[5]-bounds[4]);
         this.camera.radius = maxRange * 0.7;
+    }
+
+    resetCamera() {
+        this.camera.target = [0, 0, 0];
+        this.camera.theta = 0.5;
+        this.camera.phi = 1.0;
+        this.camera.radius = 50;
     }
 }

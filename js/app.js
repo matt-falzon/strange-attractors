@@ -302,9 +302,11 @@ class App {
                 const next = keys[(idx + 1) % keys.length];
                 this.loadAttractor(next);
             }
+            if (e.code === 'Home') {
+                this.renderer.resetCamera();
+            }
         });
     }
-
     setupSymmetryControls() {
         // Symmetry mode selector
         const symmetrySelect = document.getElementById('symmetry-mode');

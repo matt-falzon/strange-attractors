@@ -59,6 +59,9 @@ npx serve .
 - Click and drag to orbit
 - Scroll wheel to zoom in/out
 - Touch: one finger to orbit, pinch to zoom
+- WASD: move camera forward/left/back/right
+- Q/E: move camera up/down
+- Home: reset camera to default position
 
 **Panels:**
 - Left panel: list of attractors, click to switch
@@ -87,6 +90,9 @@ npx serve .
 - Press Play/Pause to start/stop the animation
 
 **Keyboard Shortcuts:**
+- `WASD` - Move camera
+- `Q/E` - Move camera up/down
+- `Home` - Reset camera
 - `S` - Take screenshot (downloads PNG)
 - `Space` - Pause/Resume simulation
 - `R` - Random attractor
