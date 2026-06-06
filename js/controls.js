@@ -38,6 +38,30 @@ Object.assign(App.prototype, {
             document.getElementById('stat-rotate').textContent = this.renderer.autoRotate ? 'ON' : 'OFF';
         });
 
+        document.getElementById('toggle-auto-orbit').addEventListener('click', () => {
+            const enabled = !this.renderer.autoOrbit;
+            this.renderer.setAutoOrbit(enabled);
+            if (this.renderer2) this.renderer2.setAutoOrbit(enabled);
+            document.getElementById('stat-orbit').textContent = enabled ? 'ON' : 'OFF';
+        });
+
+        document.getElementById('toggle-auto-orbit-bottom').addEventListener('click', () => {
+            const enabled = !this.renderer.autoOrbit;
+            this.renderer.setAutoOrbit(enabled);
+            if (this.renderer2) this.renderer2.setAutoOrbit(enabled);
+            document.getElementById('stat-orbit').textContent = enabled ? 'ON' : 'OFF';
+        });
+
+        const orbitSpeedSlider = document.getElementById('orbit-speed');
+        if (orbitSpeedSlider) {
+            orbitSpeedSlider.addEventListener('input', (e) => {
+                const speed = parseFloat(e.target.value);
+                this.renderer.setAutoOrbitSpeed(speed);
+                if (this.renderer2) this.renderer2.setAutoOrbitSpeed(speed);
+                document.getElementById('orbit-speed-value').textContent = speed.toFixed(1) + 'x';
+            });
+        }
+
         document.getElementById('toggle-mesh').addEventListener('click', (e) => {
             const btn = e.target;
             this.renderer.showMesh = !this.renderer.showMesh;
@@ -60,6 +84,12 @@ Object.assign(App.prototype, {
             if (e.code === 'KeyR') {
                 this.renderer.autoRotate = !this.renderer.autoRotate;
                 document.getElementById('stat-rotate').textContent = this.renderer.autoRotate ? 'ON' : 'OFF';
+            }
+            if (e.code === 'KeyO') {
+                const enabled = !this.renderer.autoOrbit;
+                this.renderer.setAutoOrbit(enabled);
+                if (this.renderer2) this.renderer2.setAutoOrbit(enabled);
+                document.getElementById('stat-orbit').textContent = enabled ? 'ON' : 'OFF';
             }
             if (e.code === 'KeyT') {
                 this.renderer.showTrails = !this.renderer.showTrails;

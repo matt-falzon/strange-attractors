@@ -758,6 +758,21 @@
             <input type="range" id="trail-length" min="10" max="100" step="5" value="100">
         </div>
 
+        <div class="panel-title" style="margin-top: 20px;">Camera</div>
+        <div class="param-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="param-name">Auto Orbit</span>
+                <button id="toggle-auto-orbit" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.6); padding:4px 10px; border-radius:4px; font-size:10px; cursor:pointer; letter-spacing:1px;">OFF</button>
+            </div>
+        </div>
+        <div class="param-group">
+            <div class="param-label">
+                <span class="param-name">Orbit Speed</span>
+                <span class="param-value" id="orbit-speed-value">0.3x</span>
+            </div>
+            <input type="range" id="orbit-speed" min="0" max="2" step="0.1" value="0.3">
+        </div>
+
         <div class="panel-title" style="margin-top: 20px;">Visual Effects</div>
         <div class="param-group">
             <div class="param-label">
@@ -912,6 +927,10 @@
         <div class="bottom-item" id="toggle-rotate" style="cursor:pointer;">
             <span class="bottom-label">Auto-Rotate</span>
             <span class="bottom-value" id="stat-rotate">ON</span>
+        </div>
+        <div class="bottom-item" id="toggle-auto-orbit-bottom" style="cursor:pointer;">
+            <span class="bottom-label">Orbit</span>
+            <span class="bottom-value" id="stat-orbit">OFF</span>
         </div>
         <div class="bottom-item">
             <span class="bottom-label">Lyapunov</span>

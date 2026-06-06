@@ -20,6 +20,9 @@ class PointCloudRenderer {
         this.bounds = [-30, 30, -30, 30, 0, 60];
         this.autoRotate = true;
         this.autoRotateSpeed = 0.003;
+        this.autoOrbit = false;
+        this.autoOrbitSpeed = 0.3;
+        this.autoOrbitAngle = 0;
         this.colorMode = 0;
         this.showTrails = false;
         this.trailAlpha = 0.15;
@@ -213,6 +216,12 @@ class PointCloudRenderer {
             this.camera.theta += this.autoRotateSpeed;
         }
 
+        // Auto orbit: smooth rotation around attractor center
+        if (this.autoOrbit) {
+            this.autoOrbitAngle += this.autoOrbitSpeed * 0.01;
+            this.camera.theta += this.autoOrbitSpeed * 0.01;
+        }
+
         const aspect = this.canvas.width / this.canvas.height;
         const proj = this.perspective(Math.PI / 4, aspect, 0.1, 1000);
         const view = this.getViewMatrix();
@@ -316,6 +325,8 @@ class PointCloudRenderer {
     setColorPalette(index)  { this.colorMode = index; }
     setSymmetryMode(order)  { this.symmetryOrder = order; }
     toggleVelocityColor()   { this.showVelocity = !this.showVelocity; }
+    setAutoOrbit(enabled)   { this.autoOrbit = enabled; if (!enabled) this.autoOrbitAngle = 0; }
+    setAutoOrbitSpeed(v)    { this.autoOrbitSpeed = v; }
 
     renderVectorField(simulation, phi, theta) {
         const nGrid = 15;
