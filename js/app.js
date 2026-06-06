@@ -16,6 +16,8 @@ class App {
         this.paramAnimSpeed = 0.5;
         this.paramAnimParam = null;
         this.time = 0;
+        this.targetParams = {};
+        this.transitionLerpSpeed = 0.08;
 
         this.init();
     }
@@ -31,6 +33,8 @@ class App {
         this.setupPaletteButtons();
         this.setupControls();
         this.setupAudio();
+
+        this.loadScript('js/param-editor.js');
 
         document.getElementById('loading').style.display = 'none';
 
@@ -73,6 +77,7 @@ class App {
                 this.simulation2.stepLyapunov();
             }
             this.updateParamAnimation();
+            this.updateParamTransitions();
         }
 
         this.renderer1.updatePoints(this.simulation1.points);
@@ -129,6 +134,30 @@ class App {
             }
         };
         requestAnimationFrame(animate);
+    }
+
+    loadScript(src) {
+        const script = document.createElement('script');
+        script.src = src;
+        script.type = 'text/javascript';
+        script.async = false;
+        document.head.appendChild(script);
+    }
+
+    updateParamTransitions() {
+        const speed = this.transitionLerpSpeed;
+        const current = this.simulation.params;
+        for (const key in this.targetParams) {
+            if (key in current) {
+                const diff = this.targetParams[key] - current[key];
+                if (Math.abs(diff) > 0.0001) {
+                    current[key] += diff * speed;
+                } else {
+                    current[key] = this.targetParams[key];
+                    delete this.targetParams[key];
+                }
+            }
+        }
     }
 }
 
