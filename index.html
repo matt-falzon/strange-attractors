@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strange Attractors</title>
+    <link rel="stylesheet" href="css/hud.css">
     <style>
         * {
             margin: 0;
@@ -617,7 +618,7 @@
         </div>
         <div class="bottom-item">
             <span class="bottom-label">Dynamics</span>
-            <span class="bottom-value" id="stat-chaos">-</span>
+            <span class="bottom-value" id="stat-chaos">DATA_STREAM...</span>
         </div>
         <div class="bottom-item">
             <span class="bottom-label">Symmetry</span>
@@ -666,5 +667,13 @@
     <script src="js/renderer.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/app.js"></script>
+    <script>
+        // Data stream effect for Dynamics
+        const chaosEl = document.getElementById('stat-chaos');
+        setInterval(() => {
+            const strings = ["CHAOS_0.81", "STABLE_0.12", "NOISE_0.9", "SYNC_0.44", "CALC_FLOW"];
+            chaosEl.textContent = strings[Math.floor(Math.random() * strings.length)];
+        }, 800);
+    </script>
 </body>
 </html>

@@ -1,0 +1,81 @@
+/* HUD Overhaul Styles */
+
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+}
+
+body, .panel, .bottom-item {
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Scanline Overlay */
+body::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+    background-size: 100% 4px;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0.1;
+}
+
+/* Glowing Border Animation */
+.panel {
+    border: 1px solid rgba(100, 150, 255, 0.4) !important;
+    box-shadow: 0 0 10px rgba(100, 150, 255, 0.2);
+    position: relative;
+}
+
+.panel::after {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 1px solid rgba(100, 150, 255, 0.6);
+    border-radius: 17px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.panel:hover::after {
+    opacity: 1;
+}
+
+/* CRT Neon Glow effect on text */
+.param-name, .param-value, .bottom-value, #title {
+    text-shadow: 0 0 5px rgba(100, 150, 255, 0.5), 0 0 10px rgba(100, 150, 255, 0.3);
+}
+
+        /* Diagnostic blinking status indicator */
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+#bottom-bar::after {
+    content: "SYSTEM_DIAGNOSTIC_ACTIVE // STATUS: RUNNING";
+    position: absolute;
+    top: -20px;
+    right: 20px;
+    color: #00ff00;
+    font-size: 10px;
+    text-shadow: 0 0 5px #00ff00;
+    animation: blink 1.5s infinite;
+}
+
+/* Scrolling Bottom Stream */
+#stat-chaos {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    width: 60px;
+}
