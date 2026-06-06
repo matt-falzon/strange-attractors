@@ -21,11 +21,12 @@ class App {
 
     init() {
         // Setup WebGL renderer
-        const canvas = document.getElementById('canvas');
-        this.renderer = new PointCloudRenderer(canvas);
+        this.renderer1 = new PointCloudRenderer(document.getElementById('canvas1'));
+        this.renderer2 = new PointCloudRenderer(document.getElementById('canvas2'));
 
         // Initialize simulation
-        this.loadAttractor('lorenz');
+        this.loadAttractor('lorenz', 1);
+        this.loadAttractor('lorenz', 2);
 
         // Build UI
         this.buildAttractorList();
@@ -40,39 +41,28 @@ class App {
         this.animate();
     }
 
-    loadAttractor(key) {
-        this.currentAttractor = key;
-        const attractor = ATTRACTORS[key];
-
-        console.log(`Loading attractor: ${key}`);
-        console.log(`Attractor data:`, attractor);
-
-        // Create simulation
-        this.simulation = new AttractorSimulation(key);
-
-        // Update renderer bounds
-        this.renderer.setBounds(attractor.bounds);
-
-        // Run burn-in to skip transient phase
-        this.simulation.runBurnIn(5000);
-
-        // Generate initial points
-        for (let i = 0; i < 10000; i++) {
-            this.simulation.step();
+    loadAttractor(key, id) {
+        if (id === 1) {
+            this.currentAttractor1 = key;
+            this.simulation1 = new AttractorSimulation(key);
+            this.renderer1.setBounds(ATTRACTORS[key].bounds);
+            this.simulation1.runBurnIn(5000);
+            for (let i = 0; i < 10000; i++) this.simulation1.step();
+        } else {
+            this.currentAttractor2 = key;
+            this.simulation2 = new AttractorSimulation(key);
+            this.renderer2.setBounds(ATTRACTORS[key].bounds);
+            this.simulation2.runBurnIn(5000);
+            for (let i = 0; i < 10000; i++) this.simulation2.step();
         }
 
-        console.log(`Simulation points: ${this.simulation.points.length}`);
-
-        // Update UI
+        // Run common setup
         this.updateAttractorList();
         this.updateParamsUI();
         this.updateDescription();
         this.updateStats();
-
-        // Update bottom bar
-        document.getElementById('stat-attractor').textContent = attractor.name;
-
-        // Update audio
+        
+        document.getElementById('stat-attractor').textContent = ATTRACTORS[key].name;
         this.updateAudio();
     }
 
@@ -114,6 +104,14 @@ class App {
         const params = attractor.params;
         const ranges = attractor.ranges;
 
+        // Add reset button
+        const resetBtn = document.createElement('button');
+        resetBtn.id = 'reset-params';
+        resetBtn.className = 'param-reset-btn';
+        resetBtn.textContent = '↺ Reset to Defaults';
+        resetBtn.addEventListener('click', () => this.resetParams());
+        container.appendChild(resetBtn);
+
         Object.keys(params).forEach(key => {
             const group = document.createElement('div');
             group.className = 'param-group';
@@ -140,6 +138,96 @@ class App {
                 this.regenerate();
             });
         });
+    }
+
+    resetParams() {
+        const attractor = ATTRACTORS[this.currentAttractor];
+        this.simulation.params = { ...attractor.defaults };
+        this.updateParamsUI();
+        this.regenerate();
+    }
+
+    // Named presets
+    savePreset(name) {
+        const presets = this.getPresets();
+        presets[name] = {
+            attractor: this.currentAttractor,
+            params: { ...this.simulation.params }
+        };
+        localStorage.setItem(`strange-attractors-presets-${this.currentAttractor}`, JSON.stringify(presets));
+        this.updatePresetsUI();
+    }
+
+    loadPreset(name) {
+        const presets = this.getPresets();
+        const preset = presets[name];
+        if (!preset) return;
+
+        if (preset.attractor !== this.currentAttractor) {
+            this.loadAttractor(preset.attractor);
+        }
+
+        this.simulation.params = { ...preset.params };
+        this.updateParamsUI();
+        this.regenerate();
+    }
+
+    deletePreset(name) {
+        const presets = this.getPresets();
+        delete presets[name];
+        localStorage.setItem(`strange-attractors-presets-${this.currentAttractor}`, JSON.stringify(presets));
+        this.updatePresetsUI();
+    }
+
+    getPresets() {
+        const stored = localStorage.getItem(`strange-attractors-presets-${this.currentAttractor}`);
+        return stored ? JSON.parse(stored) : {};
+    }
+
+    setupPresetsUI() {
+      const container = document.getElementById('presets-container');
+      if (!container) return;
+
+      const presets = this.getPresets();
+      container.innerHTML = '';
+
+      Object.keys(presets).forEach(name => {
+          const btn = document.createElement('button');
+          btn.className = 'preset-btn';
+          btn.textContent = name;
+          btn.addEventListener('click', () => this.loadPreset(name));
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'preset-delete';
+          deleteBtn.textContent = '×';
+          deleteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.deletePreset(name);
+          });
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'preset-item';
+          wrapper.appendChild(btn);
+          wrapper.appendChild(deleteBtn);
+          container.appendChild(wrapper);
+      });
+
+      // Setup save preset button
+      const saveBtn = document.getElementById('save-preset');
+      if (saveBtn) {
+          saveBtn.addEventListener('click', () => {
+              const nameInput = document.getElementById('preset-name');
+              const name = nameInput.value.trim();
+              if (name) {
+                  this.savePreset(name);
+                  nameInput.value = '';
+              }
+          });
+      }
+    }
+
+    updatePresetsUI() {
+        this.setupPresetsUI();
     }
 
     updateDescription() {
@@ -258,6 +346,8 @@ class App {
         this.setupBifurcation();
         this.setupSymmetryControls();
         this.setupParamAnimation();
+        this.setupPresetsUI();
+        this.setupHeatmapExplorer();
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -572,61 +662,168 @@ class App {
         }
     }
 
+    // Smooth parameter transitions
+    setParamSmooth(key, target, duration = 500) {
+        const current = this.simulation.params[key];
+        const start = performance.now();
+        const attractor = ATTRACTORS[this.currentAttractor];
+        const [min, max] = attractor.ranges[key] || [0, 1];
+        target = Math.max(min, Math.min(max, target));
+
+        const animate = (now) => {
+            const t = Math.min((now - start) / duration, 1);
+            // Ease in-out cubic
+            const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const value = current + (target - current) * ease;
+            this.simulation.params[key] = value;
+
+            const valEl = document.getElementById(`val-${key}`);
+            if (valEl) valEl.textContent = value.toFixed(3);
+
+            const sliderEl = document.querySelector(`input[data-param="${key}"]`);
+            if (sliderEl) sliderEl.value = value;
+
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                this.regenerate();
+            }
+        };
+        requestAnimationFrame(animate);
+    }
+
+    // 2D Parameter space exploration - heatmap
+    generateParamHeatmap(paramA, paramB) {
+        const container = document.getElementById('heatmap-container');
+        if (!container) return;
+
+        const attractor = ATTRACTORS[this.currentAttractor];
+        const [minA, maxA] = attractor.ranges[paramA];
+        const [minB, maxB] = attractor.ranges[paramB];
+
+        container.innerHTML = `
+            <div class="heatmap-header">
+                <span class="param-name">2D Parameter Space: ${paramA} × ${paramB}</span>
+                <button id="close-heatmap" style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:16px;">×</button>
+            </div>
+            <canvas id="heatmap-canvas" width="400" height="300" style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.1);"></canvas>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:8px;">
+                Color indicates trajectory stability (blue=stable, red=chaotic)
+            </div>
+        `;
+        container.style.display = 'block';
+
+        document.getElementById('close-heatmap').addEventListener('click', () => {
+            container.style.display = 'none';
+            container.innerHTML = '';
+        });
+
+        const canvas = document.getElementById('heatmap-canvas');
+        const ctx = canvas.getContext('2d');
+        const resolution = 40;
+        const cellW = canvas.width / resolution;
+        const cellH = canvas.height / resolution;
+
+        let cell = 0;
+        const total = resolution * resolution;
+
+        const drawBatch = () => {
+            const batchSize = 20;
+            for (let b = 0; b < batchSize && cell < total; b++, cell++) {
+                const col = cell % resolution;
+                const row = Math.floor(cell / resolution);
+
+                const valA = minA + (col / (resolution - 1)) * (maxA - minA);
+                const valB = minB + (row / (resolution - 1)) * (maxB - minB);
+
+                // Quick simulation to determine stability
+                const sim = new AttractorSimulation(this.currentAttractor);
+                sim.params[paramA] = valA;
+                sim.params[paramB] = valB;
+
+                let diverged = false;
+                for (let i = 0; i < 200; i++) {
+                    sim.step();
+                    const [x, y, z] = sim.position;
+                    if (Math.abs(x) > 1000 || Math.abs(y) > 1000 || Math.abs(z) > 1000) {
+                        diverged = true;
+                        break;
+                    }
+                }
+
+                // Calculate a stability metric based on trajectory bounds
+                const bounds = attractor.bounds;
+                const inBounds = Math.abs(sim.position[0]) < (bounds[1] - bounds[0]) * 2 &&
+                                 Math.abs(sim.position[1]) < (bounds[3] - bounds[2]) * 2;
+
+                // Color: blue (stable) -> yellow (moderate) -> red (chaotic/diverged)
+                let hue;
+                if (diverged) {
+                    hue = 0; // Red for diverged
+                } else if (inBounds) {
+                    hue = 240; // Blue for stable
+                } else {
+                    hue = 60; // Yellow for moderate
+                }
+
+                ctx.fillStyle = `hsla(${hue}, 80%, 50%, 0.8)`;
+                ctx.fillRect(col * cellW, row * cellH, cellW + 1, cellH + 1);
+            }
+
+            // Draw labels
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.font = '10px SF Mono, monospace';
+            ctx.fillText(`${minA.toFixed(1)}`, 5, canvas.height - 5);
+            ctx.fillText(`${maxA.toFixed(1)}`, canvas.width - 40, canvas.height - 5);
+            ctx.fillText(`${paramA} →`, canvas.width / 2 - 20, canvas.height - 5);
+
+            ctx.save();
+            ctx.translate(10, 10);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(`${minB.toFixed(1)}`, 0, 0);
+            ctx.fillText(`${maxB.toFixed(1)}`, 0, -canvas.height + 20);
+            ctx.fillText(`${paramB} →`, 0, -canvas.height / 2);
+            ctx.restore();
+
+            if (cell < total) {
+                requestAnimationFrame(drawBatch);
+            }
+        };
+
+        drawBatch();
+    }
+
+    setupHeatmapExplorer() {
+        const toggleBtn = document.getElementById('toggle-heatmap');
+        if (!toggleBtn) return;
+
+        toggleBtn.addEventListener('click', () => {
+            const attractor = ATTRACTORS[this.currentAttractor];
+            const paramKeys = Object.keys(attractor.ranges);
+            if (paramKeys.length < 2) return;
+
+            // Use first two parameters for the heatmap
+            this.generateParamHeatmap(paramKeys[0], paramKeys[1]);
+        });
+    }
+
      animate() {
         // Ensure simulation exists
-        if (!this.simulation) {
-            console.error('Simulation not initialized');
-            return;
-        }
+        if (!this.simulation1 || !this.simulation2) return;
 
-        // Add new points for live animation with Lyapunov tracking
+        // Add new points
         if (!this.isPaused) {
             for (let i = 0; i < 10; i++) {
-                this.simulation.stepLyapunov();
-            }
-            this.updateParamAnimation();
-        }
-
-        // Update renderer
-        this.renderer.updatePoints(this.simulation.points);
-        this.renderer.render();
-
-        // Update audio engine
-        if (window.audioEngine && window.audioEngine.enabled) {
-            window.audioEngine.update(this.simulation.position);
-        }
-
-        // Update phase space views
-        this.updatePhaseSpace();
-
-        // Update FPS
-        this.frameCount++;
-        const now = performance.now();
-        if (now - this.lastTime >= 1000) {
-            this.fps = this.frameCount;
-            this.frameCount = 0;
-            this.lastTime = now;
-
-            // Update stats
-            document.getElementById('stat-points').textContent = this.simulation.points.length.toLocaleString();
-            document.getElementById('stat-fps').textContent = this.fps;
-
-            // Update Audio display
-            this.updateAudioDisplay();
-
-            // Update Lyapunov exponent display
-            const lyap = this.simulation.getMaxLyapunovExponent();
-            const lyapEl = document.getElementById('stat-lyapunov');
-            if (lyapEl) {
-                lyapEl.textContent = lyap.toFixed(3);
-                lyapEl.style.color = lyap > 0 ? '#ff6b6b' : lyap < 0 ? '#6bff6b' : '#ffff6b';
-            }
-            const lyapStatus = document.getElementById('stat-chaos');
-            if (lyapStatus) {
-                lyapStatus.textContent = lyap > 0.01 ? 'CHAOTIC' : lyap < -0.01 ? 'STABLE' : 'EDGE';
-                lyapStatus.style.color = lyap > 0.01 ? '#ff6b6b' : lyap < -0.01 ? '#6bff6b' : '#ffff6b';
+                this.simulation1.stepLyapunov();
+                this.simulation2.stepLyapunov();
             }
         }
+
+        // Update renderers
+        this.renderer1.updatePoints(this.simulation1.points);
+        this.renderer1.render();
+        this.renderer2.updatePoints(this.simulation2.points);
+        this.renderer2.render();
 
         this.animationId = requestAnimationFrame(() => this.animate());
     }
