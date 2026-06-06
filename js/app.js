@@ -41,13 +41,17 @@ class App {
         this.animate();
     }
 
-    loadAttractor(key, id) {
+    loadAttractor(key, id = 1) {
         if (id === 1) {
             this.currentAttractor1 = key;
             this.simulation1 = new AttractorSimulation(key);
             this.renderer1.setBounds(ATTRACTORS[key].bounds);
             this.simulation1.runBurnIn(5000);
             for (let i = 0; i < 10000; i++) this.simulation1.step();
+            // Keep single-sim aliases in sync for all legacy methods
+            this.currentAttractor = key;
+            this.simulation = this.simulation1;
+            this.renderer = this.renderer1;
         } else {
             this.currentAttractor2 = key;
             this.simulation2 = new AttractorSimulation(key);
